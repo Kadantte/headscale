@@ -16,7 +16,7 @@ func DefaultConfigEnv() map[string]string {
 		"HEADSCALE_POLICY_PATH":                       "",
 		"HEADSCALE_DATABASE_TYPE":                     "sqlite",
 		"HEADSCALE_DATABASE_SQLITE_PATH":              "/tmp/integration_test_db.sqlite3",
-		"HEADSCALE_DATABASE_DEBUG":                    "1",
+		"HEADSCALE_DATABASE_DEBUG":                    "0",
 		"HEADSCALE_DATABASE_GORM_SLOW_THRESHOLD":      "1",
 		"HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT": "30m",
 		"HEADSCALE_PREFIXES_V4":                       "100.64.0.0/10",
@@ -31,7 +31,7 @@ func DefaultConfigEnv() map[string]string {
 		"HEADSCALE_DERP_AUTO_UPDATE_ENABLED":          "false",
 		"HEADSCALE_DERP_UPDATE_FREQUENCY":             "1m",
 
-		// a bunch of tests (ACL/Policy) rely on predicable IP alloc,
+		// a bunch of tests (ACL/Policy) rely on predictable IP alloc,
 		// so ensure the sequential alloc is used by default.
 		"HEADSCALE_PREFIXES_ALLOCATION": string(types.IPAllocationStrategySequential),
 	}

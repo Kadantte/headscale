@@ -36,7 +36,6 @@ import (
 	"github.com/juanfont/headscale/hscontrol/util"
 	zerolog "github.com/philip-bui/grpc-zerolog"
 	"github.com/pkg/profile"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	zl "github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/acme"
@@ -307,11 +306,9 @@ func (h *Headscale) scheduledTasks(ctx context.Context) {
 			h.cfg.TailcfgDNSConfig.ExtraRecords = records
 
 			ctx := types.NotifyCtx(context.Background(), "dns-extrarecord", "all")
-			h.nodeNotifier.NotifyAll(ctx, types.StateUpdate{
-				// TODO(kradalby): We can probably do better than sending a full update here,
-				// but for now this will ensure that all of the nodes get the new records.
-				Type: types.StateFullUpdate,
-			})
+			// TODO(kradalby): We can probably do better than sending a full update here,
+			// but for now this will ensure that all of the nodes get the new records.
+			h.nodeNotifier.NotifyAll(ctx, types.UpdateFull())
 		}
 	}
 }
@@ -511,9 +508,7 @@ func usersChangedHook(db *db.HSDatabase, polMan policy.PolicyManager, notif *not
 
 	if changed {
 		ctx := types.NotifyCtx(context.Background(), "acl-users-change", "all")
-		notif.NotifyAll(ctx, types.StateUpdate{
-			Type: types.StateFullUpdate,
-		})
+		notif.NotifyAll(ctx, types.UpdateFull())
 	}
 
 	return nil
@@ -521,29 +516,32 @@ func usersChangedHook(db *db.HSDatabase, polMan policy.PolicyManager, notif *not
 
 // TODO(kradalby): Do a variant of this, and polman which only updates the node that has changed.
 // Maybe we should attempt a new in memory state and not go via the DB?
-func nodesChangedHook(db *db.HSDatabase, polMan policy.PolicyManager, notif *notifier.Notifier) error {
+// A bool is returned indicating if a full update was sent to all nodes
+func nodesChangedHook(db *db.HSDatabase, polMan policy.PolicyManager, notif *notifier.Notifier) (bool, error) {
 	nodes, err := db.ListNodes()
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	changed, err := polMan.SetNodes(nodes)
+	filterChanged, err := polMan.SetNodes(nodes)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	if changed {
+	if filterChanged {
 		ctx := types.NotifyCtx(context.Background(), "acl-nodes-change", "all")
-		notif.NotifyAll(ctx, types.StateUpdate{
-			Type: types.StateFullUpdate,
-		})
+		notif.NotifyAll(ctx, types.UpdateFull())
+
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
 // Serve launches the HTTP and gRPC server service Headscale and the API.
 func (h *Headscale) Serve() error {
+	capver.CanOldCodeBeCleanedUp()
+
 	if profilingEnabled {
 		if profilingPath != "" {
 			err := os.MkdirAll(profilingPath, os.ModePerm)
@@ -561,9 +559,9 @@ func (h *Headscale) Serve() error {
 		spew.Dump(h.cfg)
 	}
 
+	log.Info().Str("version", types.Version).Str("commit", types.GitCommitHash).Msg("Starting Headscale")
 	log.Info().
-		Caller().
-		Str("minimum_version", capver.TailscaleVersion(MinimumCapVersion)).
+		Str("minimum_version", capver.TailscaleVersion(capver.MinSupportedCapabilityVersion)).
 		Msg("Clients with a lower minimum version will be rejected")
 
 	// Fetch an initial DERP Map before we start serving
@@ -787,26 +785,12 @@ func (h *Headscale) Serve() error {
 	log.Info().
 		Msgf("listening and serving HTTP on: %s", h.cfg.Addr)
 
-	debugMux := http.NewServeMux()
-	debugMux.Handle("/debug/pprof/", http.DefaultServeMux)
-	debugMux.HandleFunc("/debug/notifier", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(h.nodeNotifier.String()))
-	})
-	debugMux.Handle("/metrics", promhttp.Handler())
-
-	debugHTTPServer := &http.Server{
-		Addr:         h.cfg.MetricsAddr,
-		Handler:      debugMux,
-		ReadTimeout:  types.HTTPTimeout,
-		WriteTimeout: 0,
-	}
-
 	debugHTTPListener, err := net.Listen("tcp", h.cfg.MetricsAddr)
 	if err != nil {
 		return fmt.Errorf("failed to bind to TCP address: %w", err)
 	}
 
+	debugHTTPServer := h.debugHTTPServer()
 	errorGroup.Go(func() error { return debugHTTPServer.Serve(debugHTTPListener) })
 
 	log.Info().
@@ -867,9 +851,7 @@ func (h *Headscale) Serve() error {
 						Msg("ACL policy successfully reloaded, notifying nodes of change")
 
 					ctx := types.NotifyCtx(context.Background(), "acl-sighup", "na")
-					h.nodeNotifier.NotifyAll(ctx, types.StateUpdate{
-						Type: types.StateFullUpdate,
-					})
+					h.nodeNotifier.NotifyAll(ctx, types.UpdateFull())
 				}
 			default:
 				info := func(msg string) { log.Info().Msg(msg) }
