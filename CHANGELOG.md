@@ -4,10 +4,70 @@
 
 ### Changes
 
+- Use Go 1.24
+  [#2427](https://github.com/juanfont/headscale/pull/2427)
+- `oidc.map_legacy_users` and `oidc.strip_email_domain` has been removed
+  [#2411](https://github.com/juanfont/headscale/pull/2411)
+- Add more information to `/debug` endpoint
+  [#2420](https://github.com/juanfont/headscale/pull/2420)
+  - It is now possible to inspect running goroutines and take profiles
+  - View of config, policy, filter, ssh policy per node, connected nodes and
+    DERPmap
+
+## 0.25.1 (2025-02-18)
+
+### Changes
+
+- Fix issue where registration errors are sent correctly
+  [#2435](https://github.com/juanfont/headscale/pull/2435)
+
+## 0.25.0 (2025-02-11)
+
+### BREAKING
+
+- Authentication flow has been rewritten
+  [#2374](https://github.com/juanfont/headscale/pull/2374) This change should be
+  transparent to users with the exception of some buxfixes that has been
+  discovered and was fixed as part of the rewrite.
+  - When a node is registered with _a new user_, it will be registered as a new
+    node ([#2327](https://github.com/juanfont/headscale/issues/2327) and
+    [#1310](https://github.com/juanfont/headscale/issues/1310)).
+  - A logged out node logging in with the same user will replace the existing
+    node.
+- Remove support for Tailscale clients older than 1.62 (Capability version 87)
+  [#2405](https://github.com/juanfont/headscale/pull/2405)
+
+### Changes
+
 - `oidc.map_legacy_users` is now `false` by default
   [#2350](https://github.com/juanfont/headscale/pull/2350)
 - Print Tailscale version instead of capability versions for outdated nodes
   [#2391](https://github.com/juanfont/headscale/pull/2391)
+- Do not allow renaming of users from OIDC
+  [#2393](https://github.com/juanfont/headscale/pull/2393)
+- Change minimum hostname length to 2
+  [#2393](https://github.com/juanfont/headscale/pull/2393)
+- Fix migration error caused by nodes having invalid auth keys
+  [#2412](https://github.com/juanfont/headscale/pull/2412)
+- Pre auth keys belonging to a user are no longer deleted with the user
+  [#2396](https://github.com/juanfont/headscale/pull/2396)
+- Pre auth keys that are used by a node can no longer be deleted
+  [#2396](https://github.com/juanfont/headscale/pull/2396)
+- Rehaul HTTP errors, return better status code and errors to users
+  [#2398](https://github.com/juanfont/headscale/pull/2398)
+- Print headscale version and commit on server startup
+  [#2415](https://github.com/juanfont/headscale/pull/2415)
+
+## 0.24.3 (2025-02-07)
+
+### Changes
+
+- Fix migration error caused by nodes having invalid auth keys
+  [#2412](https://github.com/juanfont/headscale/pull/2412)
+- Pre auth keys belonging to a user are no longer deleted with the user
+  [#2396](https://github.com/juanfont/headscale/pull/2396)
+- Pre auth keys that are used by a node can no longer be deleted
+  [#2396](https://github.com/juanfont/headscale/pull/2396)
 
 ## 0.24.2 (2025-01-30)
 
@@ -380,7 +440,7 @@ part of adopting [#1460](https://github.com/juanfont/headscale/pull/1460).
   [#1391](https://github.com/juanfont/headscale/pull/1391)
 - Improvements on Noise implementation
   [#1379](https://github.com/juanfont/headscale/pull/1379)
-- Replace node filter logic, ensuring nodes with access can see eachother
+- Replace node filter logic, ensuring nodes with access can see each other
   [#1381](https://github.com/juanfont/headscale/pull/1381)
 - Disable (or delete) both exit routes at the same time
   [#1428](https://github.com/juanfont/headscale/pull/1428)
